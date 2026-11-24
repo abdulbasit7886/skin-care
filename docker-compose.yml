@@ -1,0 +1,29 @@
+# Local development services. Production uses the database/SMTP provided by your host.
+#   docker compose up -d
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: health_synapsis
+      POSTGRES_PASSWORD: health_synapsis_dev
+      POSTGRES_DB: health_synapsis
+    ports:
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U health_synapsis -d health_synapsis"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Catches every email sent in development (password resets, contact form).
+  # Inbox UI: http://localhost:8026
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "127.0.0.1:1026:1025"
+      - "127.0.0.1:8026:8025"
+
+volumes:
+  pgdata:

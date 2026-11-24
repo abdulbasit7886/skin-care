@@ -1,0 +1,413 @@
+// Health Synapsis database schema (PostgreSQL).
+// Field names are snake_case to match the frontend. Dates that are calendar days
+// (date, visit_date, followup_date, effective_date) are stored as 'YYYY-MM-DD' strings.
+// Clinic records are soft-deleted (deleted_at) so the audit trail keeps them.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Facility {
+  id                  String    @id @default(cuid())
+  name                String
+  address             String?
+  contact_number      String?
+  proprietor_1        String?
+  proprietor_2        String?
+  registration_number String?
+  email               String?
+  website             String?
+  tax_number          String?
+  logo_url            String?
+  role_permissions    Json?
+  role_landing        Json?
+  is_active           Boolean   @default(true)
+  created_date        DateTime  @default(now())
+  updated_date        DateTime  @updatedAt
+  created_by          String?
+  deleted_at          DateTime?
+  deleted_by          String?
+
+  users User[]
+
+  @@map("facilities")
+}
+
+model User {
+  id                  String    @id @default(cuid())
+  facility_id         String?
+  facility            Facility? @relation(fields: [facility_id], references: [id])
+  username            String    @unique
+  email               String?   @unique
+  password_hash       String
+  full_name           String
+  role                String // super_admin | admin | doctor | reception | accounts
+  doctor_id           String?   @unique
+  employee_id         String?   @unique
+  is_active           Boolean   @default(true)
+  failed_logins       Int       @default(0)
+  locked_until        DateTime?
+  reset_token_hash    String?   @unique
+  reset_token_expires DateTime?
+  password_changed_at DateTime?
+  token_version       Int       @default(0)
+  last_login_at       DateTime?
+  created_date        DateTime  @default(now())
+  updated_date        DateTime  @updatedAt
+  created_by          String?
+
+  @@index([facility_id])
+  @@map("users")
+}
+
+model Doctor {
+  id               String    @id @default(cuid())
+  facility_id      String
+  title            String?
+  first_name       String?
+  last_name        String?
+  name             String
+  specialization   String?
+  pmdc             String?
+  cnic             String?
+  sex              String?
+  father_husband   String?
+  mobile           String?
+  email            String?
+  address          String?
+  place_of_posting String?
+  consultation_fee Float?
+  followup_fee     Float?
+  color            String?
+  is_admin         Boolean   @default(false)
+  permissions      Json?
+  landing_page     String?
+  show_on_website  Boolean   @default(true)
+  photo_url        String?
+  bio              String?
+  created_date     DateTime  @default(now())
+  updated_date     DateTime  @updatedAt
+  created_by       String?
+  deleted_at       DateTime?
+  deleted_by       String?
+
+  @@index([facility_id, name])
+  @@map("doctors")
+}
+
+model Employee {
+  id             String    @id @default(cuid())
+  facility_id    String
+  first_name     String
+  last_name      String
+  designation    String?
+  role           String    @default("reception") // admin | reception | accounts | doctor
+  custom_role_id String? // optional custom role (its base_role is copied into `role`)
+  sex            String?
+  father_husband String?
+  cnic           String?
+  mobile         String
+  email          String?
+  address        String?
+  permissions    Json?
+  landing_page   String?
+  created_date   DateTime  @default(now())
+  updated_date   DateTime  @updatedAt
+  created_by     String?
+  deleted_at     DateTime?
+  deleted_by     String?
+
+  @@index([facility_id, first_name])
+  @@index([custom_role_id])
+  @@map("employees")
+}
+
+// Roles defined by the super admin (e.g. Nurse, Lab Technician), available in every facility.
+// `base_role` is the built-in access level the server enforces for data (reception | accounts);
+// `permissions` are the portal pages the role can open.
+model CustomRole {
+  id           String    @id @default(cuid())
+  name         String
+  description  String?
+  base_role    String
+  permissions  String[]  @default([])
+  landing_page String?
+  is_active    Boolean   @default(true)
+  created_date DateTime  @default(now())
+  updated_date DateTime  @updatedAt
+  created_by   String?
+  deleted_at   DateTime?
+  deleted_by   String?
+
+  @@map("custom_roles")
+}
+
+model Patient {
+  id                 String    @id @default(cuid())
+  facility_id        String
+  mrn                String?
+  first_name         String
+  last_name          String
+  name               String?
+  cnic               String?
+  mobile             String
+  address            String?
+  father_husband     String?
+  age                String?
+  sex                String?
+  profession         String?
+  referred_by        String?
+  previous_diagnosis String?
+  chart_image_uri    String?
+  created_date       DateTime  @default(now())
+  updated_date       DateTime  @updatedAt
+  created_by         String?
+  deleted_at         DateTime?
+  deleted_by         String?
+
+  @@index([facility_id, name])
+  @@index([facility_id, mrn])
+  @@index([facility_id, mobile])
+  @@map("patients")
+}
+
+model Appointment {
+  id               String    @id @default(cuid())
+  facility_id      String
+  patient_id       String
+  patient_name     String?
+  mrn              String?
+  doctor_id        String
+  doctor_name      String?
+  date             String
+  start_time       String
+  duration_minutes Int       @default(15)
+  type             String    @default("in_clinic") // in_clinic | online
+  status           String    @default("booked") // booked | checked_in | completed | cancelled | no_show
+  reason           String?
+  created_date     DateTime  @default(now())
+  updated_date     DateTime  @updatedAt
+  created_by       String?
+  deleted_at       DateTime?
+  deleted_by       String?
+
+  @@index([facility_id, date])
+  @@index([facility_id, doctor_id, date])
+  @@index([facility_id, patient_id])
+  @@map("appointments")
+}
+
+model EMR {
+  id                      String    @id @default(cuid())
+  facility_id             String
+  appointment_id          String
+  patient_id              String
+  patient_name            String?
+  mrn                     String?
+  doctor_id               String
+  doctor_name             String?
+  visit_date              String?
+  chief_complaint         String?
+  history_chief_complaint String?
+  past_history            String?
+  allergies               String?
+  labs_tests              String[]  @default([])
+  differential_diagnosis  String?
+  diagnosis               String?
+  treatment               String?
+  prescription            String?
+  services_offered        String[]  @default([])
+  procedures_performed    String[]  @default([])
+  advise                  String?
+  followup_date           String?
+  created_date            DateTime  @default(now())
+  updated_date            DateTime  @updatedAt
+  created_by              String?
+  deleted_at              DateTime?
+  deleted_by              String?
+
+  @@index([facility_id, appointment_id])
+  @@index([facility_id, patient_id])
+  @@index([facility_id, doctor_id])
+  @@map("emrs")
+}
+
+model EMRAddendum {
+  id           String    @id @default(cuid())
+  facility_id  String
+  emr_id        String
+  emr_doctor_id String // owner of the parent EMR ('imported' for scanned charts) — drives read access
+  doctor_id     String // author
+  doctor_name   String?
+  text          String
+  created_date DateTime  @default(now())
+  updated_date DateTime  @updatedAt
+  created_by   String?
+  deleted_at   DateTime?
+  deleted_by   String?
+
+  @@index([facility_id, emr_id])
+  @@map("emr_addenda")
+}
+
+model Invoice {
+  id               String    @id @default(cuid())
+  facility_id      String
+  appointment_id   String
+  patient_id       String
+  patient_name     String?
+  mrn              String?
+  doctor_id        String
+  doctor_name      String?
+  emr_id           String?
+  visit_type       String    @default("consultation") // consultation | followup
+  visit_date       String?
+  visit_time       String?
+  consultation_fee Float?
+  service_items    String[]  @default([])
+  services_total   Float?
+  procedure_items  String[]  @default([])
+  procedures_total Float?
+  total            Float?
+  discount_amount  Float     @default(0)
+  tax_rate         Float?
+  tax_amount       Float?
+  amount_paid      Float     @default(0)
+  balance          Float     @default(0)
+  payment_mode     String? // cash | online_transfer | debit_card | credit_card
+  printed          Boolean   @default(false)
+  printed_at       DateTime?
+  status           String    @default("unpaid") // unpaid | paid
+  is_corrected     Boolean   @default(false)
+  revision         Int       @default(0)
+  corrected_at     DateTime?
+  corrected_by     String?
+  created_date     DateTime  @default(now())
+  updated_date     DateTime  @updatedAt
+  created_by       String?
+  deleted_at       DateTime?
+  deleted_by       String?
+
+  @@index([facility_id, appointment_id])
+  @@index([facility_id, visit_date])
+  @@index([facility_id, patient_id])
+  @@map("invoices")
+}
+
+model Service {
+  id           String    @id @default(cuid())
+  facility_id  String
+  name         String
+  price        Float?
+  active       Boolean   @default(true)
+  created_date DateTime  @default(now())
+  updated_date DateTime  @updatedAt
+  created_by   String?
+  deleted_at   DateTime?
+  deleted_by   String?
+
+  @@index([facility_id, name])
+  @@map("services")
+}
+
+model Procedure {
+  id           String    @id @default(cuid())
+  facility_id  String
+  name         String
+  price        Float?
+  active       Boolean   @default(true)
+  created_date DateTime  @default(now())
+  updated_date DateTime  @updatedAt
+  created_by   String?
+  deleted_at   DateTime?
+  deleted_by   String?
+
+  @@index([facility_id, name])
+  @@map("procedures")
+}
+
+model LabTest {
+  id           String    @id @default(cuid())
+  facility_id  String
+  name         String
+  active       Boolean   @default(true)
+  created_date DateTime  @default(now())
+  updated_date DateTime  @updatedAt
+  created_by   String?
+  deleted_at   DateTime?
+  deleted_by   String?
+
+  @@index([facility_id, name])
+  @@map("lab_tests")
+}
+
+model TaxRate {
+  id             String    @id @default(cuid())
+  facility_id    String
+  rate           Float
+  effective_date String
+  note           String?
+  created_date   DateTime  @default(now())
+  updated_date   DateTime  @updatedAt
+  created_by     String?
+  deleted_at     DateTime?
+  deleted_by     String?
+
+  @@index([facility_id, effective_date])
+  @@map("tax_rates")
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  facility_id  String?
+  entity       String
+  record_id    String
+  action       String // create | update | delete | correct_invoice | print_invoice | login | password_reset | user_create | user_update
+  user_id      String?
+  user_name    String?
+  user_role    String?
+  summary      String?
+  changes      Json?
+  snapshot     Json?
+  ip           String?
+  created_date DateTime @default(now())
+
+  @@index([facility_id, created_date])
+  @@index([entity, record_id])
+  @@index([action, created_date])
+  @@map("audit_logs")
+}
+
+model FileObject {
+  id            String   @id @default(cuid())
+  facility_id   String?
+  visibility    String // public | private
+  storage_key   String   @unique
+  original_name String?
+  mime_type     String
+  size          Int
+  uploaded_by   String?
+  created_date  DateTime @default(now())
+
+  @@map("files")
+}
+
+model ContactMessage {
+  id           String   @id @default(cuid())
+  name         String
+  email        String?
+  phone        String?
+  subject      String?
+  message      String
+  is_read      Boolean  @default(false)
+  ip           String?
+  created_date DateTime @default(now())
+
+  @@index([created_date])
+  @@map("contact_messages")
+}

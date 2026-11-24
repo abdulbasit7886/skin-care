@@ -1,0 +1,69 @@
+/* Tokens and a few rules scoped to the public website. */
+.hs-site {
+  --paper: #fcfaf7;
+  --linen: #f3ede5;
+  --teal: #1e4842;
+  --teal-deep: #132f2b;
+  --rose: #f4e1e6;
+  --rose-mid: #e6bfcb;
+  --plum: #7a2944;
+  --ink: #1c2b2a;
+  --ink-soft: #4d5c5a;
+  --hairline: #e4dcd2;
+
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 17px;
+  line-height: 1.65;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* :where() keeps these at zero specificity so utility classes can override them. */
+:where(.hs-site) :where(h1, h2, h3) {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  color: var(--teal);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+}
+
+.hs-site a:focus-visible,
+.hs-site button:focus-visible,
+.hs-site input:focus-visible,
+.hs-site textarea:focus-visible {
+  outline: 2px solid var(--plum);
+  outline-offset: 3px;
+}
+
+.hs-site .hs-link {
+  color: var(--plum);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+.hs-site .hs-link:hover {
+  text-decoration-thickness: 2px;
+}
+
+/* Arch frame shared by the hero, portraits and logo mark. */
+.hs-arch {
+  border-radius: 999px 999px 18px 18px;
+  overflow: hidden;
+}
+
+.hs-skip {
+  position: absolute;
+  left: 1rem;
+  top: -4rem;
+  z-index: 60;
+  background: var(--teal);
+  color: var(--paper);
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+}
+.hs-skip:focus {
+  top: 1rem;
+}
